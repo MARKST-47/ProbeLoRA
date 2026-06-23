@@ -1,0 +1,12 @@
+torch
+torchvision
+transformers
+timm
+peft
+accelerate
+scikit-learn
+numpy
+pandas
+wandb
+tqdm
+scipy
