@@ -4,6 +4,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from torchvision import datasets, transforms
 from PIL import Image
+from typing import Tuple
 
 
 # Normalisation constants
@@ -116,7 +117,7 @@ def get_dataloader(
     batch_size: int = 256,
     num_workers: int = 4,
     pin_memory: bool = True,
-) -> tuple[DataLoader, int]:
+) -> Tuple[DataLoader, int]:
     """
     Returns (DataLoader, num_classes) for the requested dataset/split.
 
