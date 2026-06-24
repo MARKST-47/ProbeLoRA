@@ -6,7 +6,6 @@ from torchvision import datasets, transforms
 from PIL import Image
 from typing import Tuple
 
-
 # Normalisation constants
 # DINOv2 was trained with ImageNet statistics.
 # CLIP has its own distinct normalisation.
@@ -21,7 +20,6 @@ NORM_STATS = {
     },
 }
 
-
 def get_transform(backbone_norm: str, split: str) -> transforms.Compose:
     """
     Both ViT backbones expect 224×224 RGB images.
@@ -34,7 +32,6 @@ def get_transform(backbone_norm: str, split: str) -> transforms.Compose:
     """
     stats = NORM_STATS[backbone_norm]
     normalize = transforms.Normalize(mean=stats["mean"], std=stats["std"])
-
     if split == "train":
         return transforms.Compose([
             transforms.Resize(256),
@@ -83,13 +80,11 @@ class CUB200(Dataset):
         # Parse the three index files
         def read_pairs(fname):
             with open(self.root / fname) as f:
-                return {int(a): b for line in f
-                        for a, b in [line.strip().split(maxsplit=1)]}
+                return {int(a): b for line in f for a, b in [line.strip().split(maxsplit=1)]}
 
         img_paths = read_pairs("images.txt")                       # id → path
         img_labels = {k: int(v) - 1 for k, v in read_pairs("image_class_labels.txt").items()}
         is_train = {k: int(v) for k, v in read_pairs("train_test_split.txt").items()}
-
         flag = 1 if train else 0
         self.samples = [
             (str(self.root / "images" / img_paths[i]), img_labels[i])
@@ -107,8 +102,6 @@ class CUB200(Dataset):
             img = self.transform(img)
         return img, label
 
-
-# Public factory
 def get_dataloader(
     dataset_name: str,
     backbone_norm: str,
@@ -131,13 +124,12 @@ def get_dataloader(
         pin_memory:    set True when using GPU
 
     Returns:
-        loader      : torch.utils.data.DataLoader
+        loader : torch.utils.data.DataLoader
         num_classes : int
     """
     transform = get_transform(backbone_norm, split)
     root = Path(data_root)
     root.mkdir(parents=True, exist_ok=True)
-
     # CIFAR-100
     if dataset_name == "cifar100":
         is_train = (split == "train")
@@ -148,7 +140,6 @@ def get_dataloader(
             transform = transform,
         )
         num_classes = 100
-
     # Oxford-IIIT Pets
     elif dataset_name == "oxford_pets":
         # torchvision splits: "trainval" (3680 imgs) or "test" (3669 imgs)
@@ -161,7 +152,6 @@ def get_dataloader(
             transform = transform,
         )
         num_classes = 37
-
     # CUB-200-2011 Birds
     elif dataset_name == "cub200":
         is_train = (split == "train")
@@ -171,13 +161,11 @@ def get_dataloader(
             transform = transform,
         )
         num_classes = 200
-
     else:
         raise ValueError(
             f"Unknown dataset '{dataset_name}'. "
             "Choose from: cifar100, oxford_pets, cub200"
         )
-
     loader = DataLoader(
         ds,
         batch_size = batch_size,
@@ -186,9 +174,7 @@ def get_dataloader(
         pin_memory = pin_memory,
         drop_last = False,
     )
-
     return loader, num_classes
-
 
 # Quick check 
 if __name__ == "__main__":
@@ -201,4 +187,4 @@ if __name__ == "__main__":
             x, y = next(iter(loader))
             print(f"cifar100 | norm={norm} | split={split} | "
                   f"batch={list(x.shape)} | classes={n}")
-    print("All OK.")
+    print("Downloaded.")
