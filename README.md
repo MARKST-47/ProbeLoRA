@@ -1,6 +1,6 @@
 # ProbeLoRA: Adaptive Rank Allocation via Layer Probing
 
-Adaptive LoRA rank allocation for Vision Transformers, guided by per-layer diagnostic probing accuracy. Three strategies (Support Weak / Amplify Strong / Proportional) are compared against a Vanilla LoRA baseline across CIFAR-100, Oxford Pets, and CUB-200.
+Adaptive LoRA rank allocation for Vision Transformers, guided by per-layer diagnostic probing accuracy using Logistic Regression. Three strategies (Support Weak / Amplify Strong / Proportional) are compared against a Vanilla LoRA baseline across CIFAR-100, Oxford Pets and CUB-200.
 
 ---
 
