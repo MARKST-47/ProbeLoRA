@@ -5,7 +5,7 @@ from config import ExperimentConfig
 
 class ProbeLoRABackbone(nn.Module):
     """
-    Unified wrapper for DINOv2 and CLIP-ViT backbones.
+    Wrapper for DINOv2 and CLIP-ViT backbones.
     Handles embedding extractions and appends a linear classification head.
     """
     def __init__(self, config: ExperimentConfig, num_classes: int):
@@ -60,16 +60,13 @@ def get_backbone_model(config: ExperimentConfig, num_classes: int) -> ProbeLoRAB
     return ProbeLoRABackbone(config, num_classes)
 
 if __name__ == "__main__":
-    # Quick execution test to verify feature dimensions
+    # Test to verify feature dimensions
     from config import ExperimentConfig
-    
     mock_config = ExperimentConfig(model_name="facebook/dinov2-base")
     mock_images = torch.randn(2, 3, 224, 224)
-    
     model = get_backbone_model(mock_config, num_classes=10)
     states = model.extract_hidden_states(mock_images)
     logits = model(mock_images)
-    
     print(f"Self-Test Passed Successfully!")
     print(f"Extracted Hidden States Layers Count: {len(states)}")
     print(f"Logits Tensor Target Shape: {list(logits.shape)}")
