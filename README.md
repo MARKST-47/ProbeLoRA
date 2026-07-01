@@ -12,9 +12,10 @@ Adaptive LoRA rank allocation for Vision Transformers, guided by per-layer diagn
 │   ├── datasets.py            ← DataLoader factory (CIFAR-100, Oxford Pets, CUB-200)
 │   └── raw/                   ← Datasets download here (Auto-created)
 ├── src/
-|   └── config.py              ← single dataclass every setting
-|   └── train.py               ← main LoRA fine‑tuning (PEFT)
+|   └── config.py              ← Single dataclass every setting
+|   └── train.py               ← Main LoRA fine‑tuning (PEFT)
 │   └── backbone.py            ← DINOv2 + CLIP-ViT loading
+|   └── probing.py             ← To run probe through layers
 ├── scripts/                   ← Run scripts on the cluster
 ├── requirements.txt
 └── README.md
