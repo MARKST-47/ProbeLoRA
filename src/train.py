@@ -146,7 +146,7 @@ def main():
     )
     
     model = get_peft_model(base_model, peft_config).to(device)
-    print("\n--- Model Trainable Parameters Mapping ---")
+    print("\nModel Trainable Parameters Mapping: ")
     model.print_trainable_parameters()
     # Connect Tracking Metrics directly to the shared team WandB space
     wandb.init(
