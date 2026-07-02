@@ -22,3 +22,13 @@ Adaptive LoRA rank allocation for Vision Transformers, guided by per-layer diagn
 ```
 
 ---
+
+## Environment Setup
+
+---
+
+## Execution Pipeline
+
+---
+
+## Core Strategy Overview
