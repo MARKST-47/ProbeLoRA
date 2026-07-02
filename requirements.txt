@@ -3,6 +3,7 @@ torchvision
 transformers
 timm
 peft
+Pillow
 accelerate
 scikit-learn
 numpy
