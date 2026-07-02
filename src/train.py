@@ -4,7 +4,7 @@ import torch.optim as optim
 from tqdm import tqdm
 import wandb
 
-from config import parse_args_to_config, ExperimentConfig
+from config import parse_args_to_config
 from data.datasets import get_dataloader
 from backbone import get_backbone_model
 from peft import LoraConfig, get_peft_model
@@ -19,11 +19,9 @@ def get_strategy_ranks(strategy: str, model_name: str, base_r: int) -> dict:
     # Example placeholder accuracy array for 12 transformer layers
     probing_scores = [0.45, 0.52, 0.58, 0.65, 0.72, 0.78, 0.81, 0.79, 0.74, 0.68, 0.61, 0.55]
     num_layers = len(probing_scores)
-    
     # Define internal layer naming strings depending on the architecture
     is_clip = "clip" in model_name.lower()
     layer_prefix = "layers" if is_clip else "layer"
-    
     rank_pattern = {}
     
     if strategy == "vanilla":
@@ -51,7 +49,6 @@ def get_strategy_ranks(strategy: str, model_name: str, base_r: int) -> dict:
         ]
     else:
         raise ValueError(f"Unknown allocation strategy: {strategy}")
-
     # Map the calculated rank array directly to PEFT module suffix names
     # Ensures ranks are at least 1 to avoid broken weight dimensions
     for i, rank in enumerate(scaled_ranks):
@@ -59,7 +56,6 @@ def get_strategy_ranks(strategy: str, model_name: str, base_r: int) -> dict:
         # Suffix matching string covers both query/value or q_proj/v_proj submodules
         module_key = f"{layer_prefix}.{i}."
         rank_pattern[module_key] = target_rank
-
     return rank_pattern
 
 def train_one_epoch(model, dataloader, criterion, optimizer, device):
@@ -155,15 +151,12 @@ def main():
     )
     # Log the structural rank allocation topology mapping as a distinct meta metric
     wandb.config.update({"resolved_rank_pattern": rank_pattern_dict})
-
     # Optimization Scaffolding
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.AdamW(model.parameters(), lr=config.lr, weight_decay=config.weight_decay)
-    
     # Main Fine-Tuning Execution Loop
     print(f"\nStarting optimization loop for {config.epochs} training epochs...")
     best_val_acc = 0.0
-    
     for epoch in range(1, config.epochs + 1):
         train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, device)
         val_loss, val_acc = validate(model, val_loader, criterion, device)
@@ -184,7 +177,6 @@ def main():
             "val/accuracy": val_acc,
             "val/best_accuracy": best_val_acc
         })
-
     print(f"\nOptimization Routine Finalized. Highest Validation Accuracy Reached: {best_val_acc:.2f}%")
     wandb.finish()
 
