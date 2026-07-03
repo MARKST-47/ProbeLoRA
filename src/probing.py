@@ -117,6 +117,9 @@ def main():
     print("\nDiagnostic Probe Execution Finalized.")
     print("Copy and paste this raw array output directly into your train.py file:")
     print([float(np.round(acc, 4)) for acc in probing_accuracies])
+    scores_file_path = os.path.join(config.cache_dir, f"{config.dataset}_{model_safe_name}_scores.npy")
+    np.save(scores_file_path, np.array(probing_accuracies))
+    print(f"Automatically saved report card scores to: {scores_file_path}")
     wandb.finish()
 
 if __name__ == "__main__":
