@@ -129,7 +129,6 @@ def main():
     print(f"Applying LoRA Strategy Profile: '{config.strategy}'")
     if rank_pattern_dict:
         print(f"Generated Custom Rank Allocation Map: {rank_pattern_dict}")
-
     peft_config = LoraConfig(
         r=config.lora_r,
         lora_alpha=config.lora_alpha,
@@ -139,11 +138,9 @@ def main():
         modules_to_save=["classifier"],  # Classification head is always 100% trainable
         rank_pattern=rank_pattern_dict
     )
-    
     model = get_peft_model(base_model, peft_config).to(device)
     print("\nModel Trainable Parameters Mapping: ")
     model.print_trainable_parameters()
-    # Connect Tracking Metrics directly to the shared team WandB space
     wandb.init(
         project=config.wandb_project,
         entity=config.wandb_entity,
@@ -160,14 +157,11 @@ def main():
     for epoch in range(1, config.epochs + 1):
         train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, device)
         val_loss, val_acc = validate(model, val_loader, criterion, device)
-        
         if val_acc > best_val_acc:
             best_val_acc = val_acc
-            
         print(f"Epoch {epoch:02d}/{config.epochs:02d} | "
               f"Train Loss: {train_loss:.4f} - Train Acc: {train_acc:.2f}% | "
               f"Val Loss: {val_loss:.4f} - Val Acc: {val_acc:.2f}%")
-              
         # Tracking logs live to dashboard
         wandb.log({
             "epoch": epoch,
