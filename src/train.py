@@ -1,33 +1,39 @@
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 import wandb
+import numpy as np
 
 from config import parse_args_to_config
 from data.datasets import get_dataloader
 from backbone import get_backbone_model
 from peft import LoraConfig, get_peft_model
 
-def get_strategy_ranks(strategy: str, model_name: str, base_r: int) -> dict:
+def get_strategy_ranks(strategy: str, dataset: str, model_name: str, base_r: int, cache_dir: str = "./cached_features") -> dict:
     """
-    Computes a non-uniform layer rank dictionary based on the target strategy.
-    
-    NOTE: We replace these 12 placeholder scores with output array 
-    printed at the end of running Phase 2 (src/probing.py).
+    Dynamically loads calculated probing scores from storage disk and 
+    computes a non-uniform layer rank dictionary based on the target strategy.
     """
-    # Example placeholder accuracy array for 12 transformer layers
-    probing_scores = [0.45, 0.52, 0.58, 0.65, 0.72, 0.78, 0.81, 0.79, 0.74, 0.68, 0.61, 0.55]
+    rank_pattern = {}
+    if strategy == "vanilla":
+        return rank_pattern  # Empty dict defaults all target modules to base_r
+        
+    model_safe_name = model_name.replace("/", "_")
+    scores_file_path = os.path.join(cache_dir, f"{dataset}_{model_safe_name}_scores.npy")
+    if not os.path.exists(scores_file_path):
+        raise FileNotFoundError(
+            f"\nCould not find the layer report card file at: {scores_file_path}\n"
+            f"Run: python src/probing.py --dataset {dataset} --model_name {model_name}"
+        )
+    # Load the scores cleanly back into a standard Python list
+    probing_scores = np.load(scores_file_path).tolist()
     num_layers = len(probing_scores)
     # Define internal layer naming strings depending on the architecture
     is_clip = "clip" in model_name.lower()
     layer_prefix = "layers" if is_clip else "layer"
-    rank_pattern = {}
-    
-    if strategy == "vanilla":
-        return rank_pattern  # Empty dict defaults all target modules to base_r
-        
-    elif strategy == "support_weak":
+    if strategy == "support_weak":
         # Strategy A: Worse layer-wise accuracy -> Higher LoRA rank allocation
         # Invert scores: lower accuracy yields a higher multiplier
         inverted = [1.0 - score for score in probing_scores]
@@ -38,7 +44,7 @@ def get_strategy_ranks(strategy: str, model_name: str, base_r: int) -> dict:
         # Strategy B: Better layer-wise accuracy -> Higher LoRA rank allocation
         total = sum(probing_scores)
         scaled_ranks = [int((score / total) * base_r * num_layers) for score in probing_scores]
-        
+    
     elif strategy == "proportional":
         # Strategy C: Smooth proportional rank assignment scaling across depth
         # Map values to scale strictly between min rank 2 and max rank 16
@@ -50,12 +56,11 @@ def get_strategy_ranks(strategy: str, model_name: str, base_r: int) -> dict:
     else:
         raise ValueError(f"Unknown allocation strategy: {strategy}")
     # Map the calculated rank array directly to PEFT module suffix names
-    # Ensures ranks are at least 1 to avoid broken weight dimensions
     for i, rank in enumerate(scaled_ranks):
         target_rank = max(1, rank)
-        # Suffix matching string covers both query/value or q_proj/v_proj submodules
         module_key = f"{layer_prefix}.{i}."
         rank_pattern[module_key] = target_rank
+        
     return rank_pattern
 
 def train_one_epoch(model, dataloader, criterion, optimizer, device):
@@ -102,9 +107,9 @@ def main():
     config = parse_args_to_config()
     torch.manual_seed(config.seed)
     device = torch.device(config.device if torch.cuda.is_available() else "cpu")
-    # Setup Data pipelines
+    # Setup Data pipelines (FIXED: Corrected unpacking logic)
     print(f"Loading data: {config.dataset} | Norm mode: {config.backbone_norm}")
-    train_loader, val_loader, num_classes = get_dataloader(
+    train_loader, num_classes = get_dataloader(
         dataset_name=config.dataset,
         backbone_norm=config.backbone_norm,
         split="train",
@@ -113,7 +118,7 @@ def main():
         num_workers=config.num_workers,
         pin_memory=config.pin_memory
     )
-    _, val_loader, _ = get_dataloader(
+    val_loader, _ = get_dataloader(
         dataset_name=config.dataset,
         backbone_norm=config.backbone_norm,
         split="val",
@@ -122,10 +127,15 @@ def main():
         num_workers=config.num_workers,
         pin_memory=config.pin_memory
     )
-    # Fetch wrapped baseline network
     base_model = get_backbone_model(config, num_classes=num_classes)
-    # Inject Dynamic Rank Configurations using LoraConfig
-    rank_pattern_dict = get_strategy_ranks(config.strategy, config.model_name, config.lora_r)
+    # Inject Dynamic Rank Configurations using LoraConfig 
+    rank_pattern_dict = get_strategy_ranks(
+        strategy=config.strategy,
+        dataset=config.dataset,
+        model_name=config.model_name,
+        base_r=config.lora_r,
+        cache_dir=config.cache_dir
+    )
     print(f"Applying LoRA Strategy Profile: '{config.strategy}'")
     if rank_pattern_dict:
         print(f"Generated Custom Rank Allocation Map: {rank_pattern_dict}")
@@ -148,7 +158,7 @@ def main():
     )
     # Log the structural rank allocation topology mapping as a distinct meta metric
     wandb.config.update({"resolved_rank_pattern": rank_pattern_dict})
-    # Optimization Scaffolding
+    # Optimization 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.AdamW(model.parameters(), lr=config.lr, weight_decay=config.weight_decay)
     # Main Fine-Tuning Execution Loop
