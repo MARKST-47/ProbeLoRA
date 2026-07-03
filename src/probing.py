@@ -1,11 +1,12 @@
 import os
 import torch
 import numpy as np
+import wandb
 from tqdm import tqdm
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
-from config import parse_args_to_config
+from config import parse_args_to_config, ExperimentConfig
 from data.datasets import get_dataloader
 from backbone import get_backbone_model
 
@@ -48,8 +49,14 @@ def main():
     config = parse_args_to_config()
     device = torch.device(config.device if torch.cuda.is_available() else "cpu")
     print(f"Starting Diagnostic Probing on device: {device}")
-    # Instantiate data loaders 
-    train_loader, val_loader, num_classes = get_dataloader(
+    # Connect this diagnostic run to your shared team WandB space
+    wandb.init(
+        project=config.wandb_project,
+        entity=config.wandb_entity,
+        job_type="diagnostic-probing",
+        config=config.to_dict()
+    )
+    train_loader, num_classes = get_dataloader(
         dataset_name=config.dataset,
         backbone_norm=config.backbone_norm,
         split="train",
@@ -58,7 +65,7 @@ def main():
         num_workers=config.num_workers,
         pin_memory=config.pin_memory
     )
-    _, val_loader, _ = get_dataloader(
+    val_loader, _ = get_dataloader(
         dataset_name=config.dataset,
         backbone_norm=config.backbone_norm,
         split="val",
@@ -67,7 +74,6 @@ def main():
         num_workers=config.num_workers,
         pin_memory=config.pin_memory
     )
-    # Load frozen baseline network structure
     model = get_backbone_model(config, num_classes=num_classes).to(device)
     # Handle serialization paths
     os.makedirs(config.cache_dir, exist_ok=True)
@@ -88,7 +94,7 @@ def main():
     # Fit Linear Probes layer by layer
     # Index 0 is the input embedding layer, indices 1-12 are the actual transformer blocks
     num_total_layers = X_train.shape[0]
-    print(f"\n--- Training Diagnostic Linear Probes Across {num_total_layers} Layers ---")
+    print(f"\nTraining Diagnostic Linear Probes Across {num_total_layers} Layers.")
     probing_accuracies = []
     # We skip layer 0 (raw embeddings) and evaluate the 12 transformer blocks
     for block_idx in range(1, num_total_layers):
@@ -104,11 +110,14 @@ def main():
         probe_head.fit(X_tr_block, y_train)
         accuracy_score = probe_head.score(X_va_block, y_val)
         probing_accuracies.append(accuracy_score)
+        # Log to WandB
+        wandb.log({"diagnostic/layer_index": block_idx, "diagnostic/probing_accuracy": accuracy_score * 100})
         print(f"Transformer Block {block_idx:02d} -> Downstream Probing Validation Accuracy: {accuracy_score * 100:.2f}%")
 
-    print("\n--- Diagnostic Probe Execution Finalized ---")
+    print("\nDiagnostic Probe Execution Finalized.")
     print("Copy and paste this raw array output directly into your train.py file:")
     print([float(np.round(acc, 4)) for acc in probing_accuracies])
+    wandb.finish()
 
 if __name__ == "__main__":
     main()
