@@ -22,7 +22,6 @@ class ProbeLoRABackbone(nn.Module):
             self.hidden_dim = self.backbone.config.hidden_size  # 768 for base
         else:
             raise ValueError(f"Unsupported model architecture: {config.model_name}")
-            
         # Append downstream task classification head
         self.classifier = nn.Linear(self.hidden_dim, num_classes)
 
@@ -50,7 +49,6 @@ class ProbeLoRABackbone(nn.Module):
             outputs = self.backbone(pixel_values)
             # DINOv2 pools representations using the standard first [CLS] token
             pooled_output = outputs.last_hidden_state[:, 0, :]
-            
         # Pass through classification linear layer
         logits = self.classifier(pooled_output)
         return logits
