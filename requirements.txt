@@ -11,3 +11,4 @@ pandas
 wandb
 tqdm
 scipy
+datasets
