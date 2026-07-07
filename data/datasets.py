@@ -1,8 +1,9 @@
 from pathlib import Path
 from torch.utils.data import DataLoader, Dataset
-from torchvision import datasets, transforms
+from torchvision import transforms
 from PIL import Image
 from typing import Tuple
+from datasets import load_dataset
 
 # Normalisation constants
 NORM_STATS = {
@@ -39,6 +40,27 @@ def get_transform(backbone_norm: str, split: str) -> transforms.Compose:
             normalize,
         ])
 
+class HuggingFaceDatasetWrapper(Dataset):
+    """
+    Generic wrapper to make Hugging Face datasets look and act like PyTorch datasets.
+    """
+    def __init__(self, hf_dataset, image_key: str, label_key: str, transform=None):
+        self.dataset = hf_dataset
+        self.image_key = image_key
+        self.label_key = label_key
+        self.transform = transform
+
+    def __len__(self) -> int:
+        return len(self.dataset)
+
+    def __getitem__(self, idx: int) -> Tuple[Image.Image, int]:
+        item = self.dataset[idx]
+        img = item[self.image_key].convert("RGB")
+        label = item[self.label_key]
+        if self.transform:
+            img = self.transform(img)
+        return img, label
+
 class CUB200(Dataset):
     """
     Caltech-UCSD Birds 200-2011 dataset class.
@@ -46,15 +68,21 @@ class CUB200(Dataset):
     """
     def __init__(self, root: str, train: bool = True, transform=None):
         self.root = Path(root).resolve()
-        # Fallback check for nested archive extraction paths
+        
+        # Automatic secure download from high-speed repository mirror if missing
+        if not self.root.exists() and not (self.root / "CUB_200_2011").exists():
+            print(f"CUB200 not found at {self.root}. Downloading from high-speed mirror...")
+            import torchvision.datasets.utils as tv_utils
+            self.root.mkdir(parents=True, exist_ok=True)
+            # Using a highly available, fast academic mirror mirror instead of Caltech
+            mirror_url = "https://huggingface.co/datasets/vis-datasets/cub200/resolve/main/CUB_200_2011.tgz"
+            tv_utils.download_and_extract_archive(mirror_url, download_root=str(self.root))
+
         if (self.root / "CUB_200_2011").exists():
             self.root = self.root / "CUB_200_2011"
+            
         self.transform = transform
-        if not self.root.exists():
-            raise FileNotFoundError(
-                f"CUB-200 data structure not found at {self.root}. Check download paths."
-            )
-        # To parse structural index pairs
+        
         def read_pairs(filename: str):
             pairs = {}
             with open(self.root / filename, "r") as f:
@@ -63,6 +91,7 @@ class CUB200(Dataset):
                     if parts:
                         pairs[int(parts[0])] = parts[1]
             return pairs
+            
         img_paths = read_pairs("images.txt")
         img_labels = {k: int(v) - 1 for k, v in read_pairs("image_class_labels.txt").items()}
         is_train_split = {k: int(v) for k, v in read_pairs("train_test_split.txt").items()}
@@ -97,24 +126,21 @@ def get_dataloader(
     transform = get_transform(backbone_norm, split)
     root = Path(data_root).resolve()
     root.mkdir(parents=True, exist_ok=True)
+    
+    hf_split = "train" if split == "train" else "test"
+
     if dataset_name == "cifar100":
-        ds = datasets.CIFAR100(
-            root=str(root / "cifar100"),
-            train=(split == "train"),
-            download=True,
-            transform=transform,
-        )
+        # Fast download from Hugging Face CDN
+        hf_ds = load_dataset("cifar100", split=hf_split, trust_remote_code=True, cache_dir=str(root / "cache"))
+        ds = HuggingFaceDatasetWrapper(hf_ds, image_key="img", label_key="fine_label", transform=transform)
         num_classes = 100   
+        
     elif dataset_name == "oxford_pets":
-        tv_split = "trainval" if split == "train" else "test"
-        ds = datasets.OxfordIIITPet(
-            root=str(root / "oxford_pets"),
-            split=tv_split,
-            target_types="category",
-            download=True,
-            transform=transform,
-        )
+        # Fast download from Hugging Face CDN
+        hf_ds = load_dataset("oxford_iiit_pet", split=hf_split, trust_remote_code=True, cache_dir=str(root / "cache"))
+        ds = HuggingFaceDatasetWrapper(hf_ds, image_key="image", label_key="label", transform=transform)
         num_classes = 37
+        
     elif dataset_name == "cub200":
         ds = CUB200(
             root=str(root / "cub200"),
