@@ -7,3 +7,4 @@ venv/
 env/
 # Test runs/functions folder
 tests/
+wandb_api.txt
