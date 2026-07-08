@@ -46,11 +46,10 @@ def get_strategy_ranks(strategy: str, dataset: str, model_name: str, base_r: int
         scaled_ranks = [int((score / total) * base_r * num_layers) for score in probing_scores]
     
     elif strategy == "proportional":
-        # Strategy C: Smooth proportional rank assignment scaling across depth
-        # Map values to scale strictly between min rank 2 and max rank 16
         min_s, max_s = min(probing_scores), max(probing_scores)
+        min_r, max_r = max(1, base_r // 2), base_r * 2
         scaled_ranks = [
-            int(2 + (14 * (score - min_s) / (max_s - min_s + 1e-6))) 
+            int(min_r + (max_r - min_r) * (score - min_s) / (max_s - min_s + 1e-6))
             for score in probing_scores
         ]
     else:
@@ -58,7 +57,7 @@ def get_strategy_ranks(strategy: str, dataset: str, model_name: str, base_r: int
     # Map the calculated rank array directly to PEFT module suffix names
     for i, rank in enumerate(scaled_ranks):
         target_rank = max(1, rank)
-        module_key = f"{layer_prefix}.{i}."
+        module_key = rf"{layer_prefix}\.{i}\..*" 
         rank_pattern[module_key] = target_rank
         
     return rank_pattern
@@ -149,6 +148,9 @@ def main():
         rank_pattern=rank_pattern_dict
     )
     model = get_peft_model(base_model, peft_config).to(device)
+    for name, module in model.named_modules():
+        if hasattr(module, "r") and isinstance(getattr(module, "r"), dict):
+            print(name, module.r)
     print("\nModel Trainable Parameters Mapping: ")
     model.print_trainable_parameters()
     wandb.init(
