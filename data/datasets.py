@@ -61,56 +61,6 @@ class HuggingFaceDatasetWrapper(Dataset):
             img = self.transform(img)
         return img, label
 
-class CUB200(Dataset):
-    """
-    Caltech-UCSD Birds 200-2011 dataset class.
-    Parses structural text mappings directly from raw data files.
-    """
-    def __init__(self, root: str, train: bool = True, transform=None):
-        self.root = Path(root).resolve()
-        
-        # Automatic secure download from high-speed repository mirror if missing
-        if not self.root.exists() and not (self.root / "CUB_200_2011").exists():
-            print(f"CUB200 not found at {self.root}. Downloading from high-speed mirror...")
-            import torchvision.datasets.utils as tv_utils
-            self.root.mkdir(parents=True, exist_ok=True)
-            # Using a highly available, fast academic mirror mirror instead of Caltech
-            mirror_url = "https://huggingface.co/datasets/vis-datasets/cub200/resolve/main/CUB_200_2011.tgz"
-            tv_utils.download_and_extract_archive(mirror_url, download_root=str(self.root))
-
-        if (self.root / "CUB_200_2011").exists():
-            self.root = self.root / "CUB_200_2011"
-            
-        self.transform = transform
-        
-        def read_pairs(filename: str):
-            pairs = {}
-            with open(self.root / filename, "r") as f:
-                for line in f:
-                    parts = line.strip().split(maxsplit=1)
-                    if parts:
-                        pairs[int(parts[0])] = parts[1]
-            return pairs
-            
-        img_paths = read_pairs("images.txt")
-        img_labels = {k: int(v) - 1 for k, v in read_pairs("image_class_labels.txt").items()}
-        is_train_split = {k: int(v) for k, v in read_pairs("train_test_split.txt").items()}
-        target_flag = 1 if train else 0
-        self.samples = [
-            (str(self.root / "images" / img_paths[i]), img_labels[i])
-            for i in img_paths if is_train_split[i] == target_flag
-        ]
-
-    def __len__(self) -> int:
-        return len(self.samples)
-
-    def __getitem__(self, idx: int) -> Tuple[Image.Image, int]:
-        path, label = self.samples[idx]
-        img = Image.open(path).convert("RGB")
-        if self.transform:
-            img = self.transform(img)
-        return img, label
-
 def get_dataloader(
     dataset_name: str,
     backbone_norm: str,
@@ -141,11 +91,8 @@ def get_dataloader(
         num_classes = 37
         
     elif dataset_name == "cub200":
-        ds = CUB200(
-            root=str(root / "cub200"),
-            train=(split == "train"),
-            transform=transform,
-        )
+        hf_ds = load_dataset("EvelynFan/CUB_200_2011", split=hf_split, cache_dir=str(root / "cache"))
+        ds = HuggingFaceDatasetWrapper(hf_ds, image_key="image", label_key="label", transform=transform)
         num_classes = 200
     else:
         raise ValueError(f"Unknown dataset '{dataset_name}'.")
