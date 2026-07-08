@@ -131,13 +131,12 @@ def get_dataloader(
 
     if dataset_name == "cifar100":
         # Fast download from Hugging Face CDN
-        hf_ds = load_dataset("cifar100", split=hf_split, trust_remote_code=True, cache_dir=str(root / "cache"))
+        hf_ds = load_dataset("cifar100", split=hf_split, cache_dir=str(root / "cache"))
         ds = HuggingFaceDatasetWrapper(hf_ds, image_key="img", label_key="fine_label", transform=transform)
         num_classes = 100   
         
     elif dataset_name == "oxford_pets":
-        # Fast download from Hugging Face CDN
-        hf_ds = load_dataset("oxford_iiit_pet", split=hf_split, trust_remote_code=True, cache_dir=str(root / "cache"))
+        hf_ds = load_dataset("timm/oxford-iiit-pet", split=hf_split, cache_dir=str(root / "cache"))
         ds = HuggingFaceDatasetWrapper(hf_ds, image_key="image", label_key="label", transform=transform)
         num_classes = 37
         
