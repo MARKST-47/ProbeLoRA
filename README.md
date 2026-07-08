@@ -13,7 +13,7 @@ Adaptive LoRA rank allocation for Vision Transformers, guided by per-layer diagn
 │   └── raw/                   ← Datasets download here (Auto-created)
 ├── src/
 |   └── config.py              ← Single dataclass every setting
-|   └── train.py               ← Main LoRA fine‑tuning (PEFT)
+|   └── train.py               ← Main LoRA fine-tuning (PEFT)
 │   └── backbone.py            ← DINOv2 + CLIP-ViT loading
 |   └── probing.py             ← To run probe through layers
 ├── scripts/                   ← Run scripts on the cluster
@@ -33,42 +33,60 @@ Adaptive LoRA rank allocation for Vision Transformers, guided by per-layer diagn
 
 ## Core Strategy Overview
 
-Our project operates under a strict **fixed parameter budget**. Instead of giving more parameters to the model, we take the standard budget—which normally gives all 12 transformer layers a flat rank of 8 (a total pool of $12 \times 8 = 96$ rank points)—and distribute it dynamically based on our upfront diagnostic "report card."
+Our project operates under a strict **fixed parameter budget**. Instead of giving more parameters to the model, we take the standard budget — which normally gives all $N$ transformer layers a flat rank of $r_{\text{base}}$ (a total pool of $r_{\text{base}} \times N$ rank points) — and distribute it dynamically based on our upfront diagnostic "report card."
 
-> ⚠️ **Important Note on Scale:** We keep the scaling value `lora_alpha` completely constant ($\alpha = 16$) across all layers. We are **not** changing the training volume, instead, we are adjusting the **width of the learning highway (the Rank $r$)** for each layer. Widening the rank gives a layer more structural brain capacity to learn complex features, while shrinking it protects existing knowledge.
+> **Note on scale:** `lora_alpha` is kept constant ($\alpha = 16$) across all layers for every strategy. We are not changing the training volume; we are adjusting the **width of the learning pathway (the rank $r$)** for each layer. A wider rank gives a layer more structural capacity to learn new features, while a narrower rank preserves more of the pretrained representation.
 
 Here is how our four core allocation strategies work in practice:
 
-### 🏢 1. Vanilla (The Uniform Baseline)
+### 1. Vanilla (Uniform Baseline)
 
-This is the standard industry default. It distributes the parameter budget completely equally across the entire network architecture. Every single transformer layer is assigned an identical, flat rank.
+This is the standard default. It distributes the parameter budget completely equally across the entire network. Every transformer layer is assigned an identical, flat rank.
 
-- **Formula:**
-  $$r_i = r_{\text{base}}$$
-  _(Where $r_{\text{base}} = 8$ across all $N$ layers)_
+**Formula:**
 
-### 📉 2. Support the Weak (Strategy A)
+$$r_i = r_{\text{base}}$$
 
-This strategy targets the layers that performed poorly on the diagnostic probe and gives them the largest ranks. This operates on the theory that highly competent layers do not need modification, so your extra training capacity should be spent helping struggling layers adapt.
+_(where $r_{\text{base}} = 8$ across all $N$ layers)\_
 
-- **Formula:**
-  First, we invert the probing accuracy scores $S_i$ into a failure metric:
-  $$V_i = 1.0 - S_i$$
-  Then, we distribute our total rank pool proportionally based on those failure values:
-  $$r_i = \max\left(1, \left\lfloor \frac{V_i}{\sum_{j=1}^{N} V_j} \cdot r_{\text{base}} \cdot N \right\rfloor\right)$$
+### 2. Support the Weak (Strategy A)
 
-### 📈 3. Amplify the Strong (Strategy B)
+This strategy targets the layers that performed poorly on the diagnostic probe and gives them the largest ranks, on the theory that already-competent layers need little adaptation, so training capacity is better spent helping struggling layers catch up.
 
-This strategy does the exact opposite of Strategy A. It concentrates your parameter budget into the layers that naturally scored the highest on the diagnostic probe, doubling down on the blocks that already display high task competency.
+**Formula:**
 
-- **Formula:**
-  We distribute our total rank pool directly based on the raw passing accuracy scores:
-  $$r_i = \max\left(1, \left\lfloor \frac{S_i}{\sum_{j=1}^{N} S_j} \cdot r_{\text{base}} \cdot N \right\rfloor\right)$$
+First, invert the probing accuracy scores $S_i$ into a failure metric:
 
-### 📐 4. Proportional Scaling (Strategy C)
+$$V_i = 1.0 - S_i$$
 
-This strategy avoids extreme allocation shifts. It maps layer-wise ranks smoothly between a strict floor and ceiling based on where each layer sits relative to the absolute best and worst performing blocks in the model.
+Then distribute the total rank pool proportionally to those failure values:
 
-- **Formula:**
-  We apply Min-Max normalization to the probing scores and map them into a strict rank range between $2$ and $16$:
-  $$r_i = \left\lfloor 2 + \left( 14 \cdot \frac{S_i - \min(S)}{\max(S) - \min(S) + 10^{-6}} \right) \right\rfloor$$
+$$r_i = \max\left(1, \left\lfloor \frac{V_i}{\sum_{j=1}^{N} V_j} \cdot r_{\text{base}} \cdot N \right\rfloor\right)$$
+
+### 3. Amplify the Strong (Strategy B)
+
+This strategy does the opposite of Strategy A. It concentrates the parameter budget into the layers that scored highest on the diagnostic probe, reinforcing the blocks that already display high task competency.
+
+**Formula:**
+
+Distribute the total rank pool directly according to the raw probing scores:
+
+$$r_i = \max\left(1, \left\lfloor \frac{S_i}{\sum_{j=1}^{N} S_j} \cdot r_{\text{base}} \cdot N \right\rfloor\right)$$
+
+### 4. Proportional Scaling (Strategy C)
+
+This strategy avoids extreme allocation shifts. It maps layer-wise ranks smoothly between a floor and ceiling derived from the same rank budget $r_{\text{base}}$ used by the other strategies, based on where each layer sits relative to the best- and worst-performing blocks in the model.
+
+**Formula:**
+
+Define the floor and ceiling relative to the base rank:
+
+$$r_{\min} = \max(1, \lfloor r_{\text{base}} / 2 \rfloor), \qquad r_{\max} = 2 \cdot r_{\text{base}}$$
+
+Apply min-max normalization to the probing scores and map them into $[r_{\min}, r_{\max}]$:
+
+$$r_i = \left\lfloor r_{\min} + \left( (r_{\max} - r_{\min}) \cdot \frac{S_i - \min(S)}{\max(S) - \min(S) + 10^{-6}} \right) \right\rfloor$$
+
+_(at $r_{\text{base}} = 8$, this yields the same $[4, 16]$ range as Strategies A and B use as their effective span, keeping all three strategies budget-comparable and jointly controllable via `--lora_r`)\_
+
+All three adaptive strategies share the same total-budget logic as Vanilla — they redistribute an equivalent rank pool across layers rather than increasing it, isolating the effect of **where** capacity is allocated rather than **how much** capacity is used.
