@@ -91,7 +91,7 @@ def get_dataloader(
         num_classes = 37
         
     elif dataset_name == "cub200":
-        hf_ds = load_dataset("EvelynFan/CUB_200_2011", split=hf_split, cache_dir=str(root / "cache"))
+        hf_ds = load_dataset("cassiekang/cub200_dataset", split=hf_split, cache_dir=str(root / "cache"))
         ds = HuggingFaceDatasetWrapper(hf_ds, image_key="image", label_key="label", transform=transform)
         num_classes = 200
     else:
