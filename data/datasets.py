@@ -91,8 +91,8 @@ def get_dataloader(
         num_classes = 37
         
     elif dataset_name == "cub200":
-        hf_ds = load_dataset("cassiekang/cub200_dataset", split=hf_split, cache_dir=str(root / "cache"))
-        ds = HuggingFaceDatasetWrapper(hf_ds, image_key="image", label_key="text", transform=transform)
+        hf_ds = load_dataset("galilai-group/cub200", split=hf_split, cache_dir=str(root / "cache"))
+        ds = HuggingFaceDatasetWrapper(hf_ds, image_key="image", label_key="label", transform=transform)
         num_classes = 200
     else:
         raise ValueError(f"Unknown dataset '{dataset_name}'.")
