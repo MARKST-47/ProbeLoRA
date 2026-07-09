@@ -47,7 +47,7 @@ This is the standard default. It distributes the parameter budget completely equ
 
 $$r_i = r_{\text{base}}$$
 
-_(where $r_{\text{base}} = 8$ across all $N$ layers)\_
+(where `r_base = 8` across all `N` layers)
 
 ### 2. Support the Weak (Strategy A)
 
@@ -87,6 +87,6 @@ Apply min-max normalization to the probing scores and map them into $[r_{\min}, 
 
 $$r_i = \left\lfloor r_{\min} + \left( (r_{\max} - r_{\min}) \cdot \frac{S_i - \min(S)}{\max(S) - \min(S) + 10^{-6}} \right) \right\rfloor$$
 
-_(at $r_{\text{base}} = 8$, this yields the same $[4, 16]$ range as Strategies A and B use as their effective span, keeping all three strategies budget-comparable and jointly controllable via `--lora_r`)\_
+(at `r_base = 8`, this yields the same `[4, 16]` range as Strategies A and B use as their effective span, keeping all three strategies budget-comparable and jointly controllable via `--lora_r`)
 
 All three adaptive strategies share the same total-budget logic as Vanilla — they redistribute an equivalent rank pool across layers rather than increasing it, isolating the effect of **where** capacity is allocated rather than **how much** capacity is used.
