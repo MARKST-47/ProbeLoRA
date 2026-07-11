@@ -16,7 +16,9 @@ Adaptive LoRA rank allocation for Vision Transformers, guided by per-layer diagn
 |   └── train.py               ← Main LoRA fine-tuning (PEFT)
 │   └── backbone.py            ← DINOv2 + CLIP-ViT loading
 |   └── probing.py             ← To run probe through layers
-├── scripts/                   ← Run scripts on the cluster
+├── scripts/
+|   └── clip_matrix.sub        ← CLIP model probe + runs
+|   └── dino_matrix.sub        ← DINO model probe + runs
 ├── requirements.txt
 └── README.md
 ```
