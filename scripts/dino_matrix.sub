@@ -16,23 +16,8 @@ request_disk            = 30G
 requirements            = UidDomain == "cs.uni-saarland.de"
 +WantGPUHomeMounted     = true
 
-# Phase 1: Probing
-arguments               = src/probing.py --dataset cifar100 --model_name facebook/dinov2-base
-dataset                 = cifar100
-strategy                = probing
-queue
+# PHASE 1: CIFAR100 TRAINING
 
-arguments               = src/probing.py --dataset oxford_pets --model_name facebook/dinov2-base
-dataset                 = oxford_pets
-strategy                = probing
-queue
-
-arguments               = src/probing.py --dataset cub200 --model_name facebook/dinov2-base
-dataset                 = cub200
-strategy                = probing
-queue
-
-# Phase 2: CIFAR100 Training
 arguments               = src/train.py --dataset cifar100 --model_name facebook/dinov2-base --strategy vanilla --epochs 10 --lora_r 8 --batch_size 64
 dataset                 = cifar100
 strategy                = vanilla
@@ -53,7 +38,8 @@ dataset                 = cifar100
 strategy                = proportional
 queue
 
-# Phase 3: Oxford Pets Training
+# PHASE 2: OXFORD PETS TRAINING
+
 arguments               = src/train.py --dataset oxford_pets --model_name facebook/dinov2-base --strategy vanilla --epochs 10 --lora_r 8 --batch_size 64
 dataset                 = oxford_pets
 strategy                = vanilla
@@ -74,7 +60,8 @@ dataset                 = oxford_pets
 strategy                = proportional
 queue
 
-# Phase 4: CUB-200 Training
+# PHASE 3: CUB-200 TRAINING
+
 arguments               = src/train.py --dataset cub200 --model_name facebook/dinov2-base --strategy vanilla --epochs 10 --lora_r 8 --batch_size 64
 dataset                 = cub200
 strategy                = vanilla
@@ -93,4 +80,69 @@ queue
 arguments               = src/train.py --dataset cub200 --model_name facebook/dinov2-base --strategy proportional --epochs 10 --lora_r 8 --batch_size 64
 dataset                 = cub200
 strategy                = proportional
+queue
+
+# PHASE 4: POST-ADAPTATION PROBING
+
+# CIFAR-100
+arguments               = src/probing.py --dataset cifar100 --model_name facebook/dinov2-base --checkpoint_path checkpoints/cifar100_vanilla
+dataset                 = cifar100
+strategy                = post_probing_vanilla
+queue
+
+arguments               = src/probing.py --dataset cifar100 --model_name facebook/dinov2-base --checkpoint_path checkpoints/cifar100_support_weak
+dataset                 = cifar100
+strategy                = post_probing_support_weak
+queue
+
+arguments               = src/probing.py --dataset cifar100 --model_name facebook/dinov2-base --checkpoint_path checkpoints/cifar100_amplify_strong
+dataset                 = cifar100
+strategy                = post_probing_amplify_strong
+queue
+
+arguments               = src/probing.py --dataset cifar100 --model_name facebook/dinov2-base --checkpoint_path checkpoints/cifar100_proportional
+dataset                 = cifar100
+strategy                = post_probing_proportional
+queue
+
+# Oxford Pets
+arguments               = src/probing.py --dataset oxford_pets --model_name facebook/dinov2-base --checkpoint_path checkpoints/oxford_pets_vanilla
+dataset                 = oxford_pets
+strategy                = post_probing_vanilla
+queue
+
+arguments               = src/probing.py --dataset oxford_pets --model_name facebook/dinov2-base --checkpoint_path checkpoints/oxford_pets_support_weak
+dataset                 = oxford_pets
+strategy                = post_probing_support_weak
+queue
+
+arguments               = src/probing.py --dataset oxford_pets --model_name facebook/dinov2-base --checkpoint_path checkpoints/oxford_pets_amplify_strong
+dataset                 = oxford_pets
+strategy                = post_probing_amplify_strong
+queue
+
+arguments               = src/probing.py --dataset oxford_pets --model_name facebook/dinov2-base --checkpoint_path checkpoints/oxford_pets_proportional
+dataset                 = oxford_pets
+strategy                = post_probing_proportional
+queue
+
+# CUB-200
+arguments               = src/probing.py --dataset cub200 --model_name facebook/dinov2-base --checkpoint_path checkpoints/cub200_vanilla
+dataset                 = cub200
+strategy                = post_probing_vanilla
+queue
+
+arguments               = src/probing.py --dataset cub200 --model_name facebook/dinov2-base --checkpoint_path checkpoints/cub200_support_weak
+dataset                 = cub200
+strategy                = post_probing_support_weak
+queue
+
+arguments               = src/probing.py --dataset cub200 --model_name facebook/dinov2-base --checkpoint_path checkpoints/cub200_amplify_strong
+dataset                 = cub200
+strategy                = post_probing_amplify_strong
+queue
+
+arguments               = src/probing.py --dataset cub200 --model_name facebook/dinov2-base --checkpoint_path checkpoints/cub200_proportional
+dataset                 = cub200
+strategy                = post_probing_proportional
 queue
