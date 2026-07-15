@@ -184,6 +184,11 @@ def main():
             "val/best_accuracy": best_val_acc
         })
     print(f"\nOptimization Routine Finalized. Highest Validation Accuracy Reached: {best_val_acc:.2f}%")
+    # Save weights for LoRA-adapted model (only the small LoRA weights + config are saved)
+    save_path = f"checkpoints/{config.dataset}_{config.strategy}"
+    os.makedirs(save_path, exist_ok=True)
+    model.save_pretrained(save_path)
+    print(f"Successfully saved adapted LoRA checkpoint to: {save_path}")
     wandb.finish()
 
 if __name__ == "__main__":
