@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import torch
 import numpy as np
 import wandb
@@ -49,10 +50,24 @@ def main():
         checkpoint_path = sys.argv[idx + 1]
         sys.argv.remove("--checkpoint_path")
         sys.argv.remove(checkpoint_path)
+        
     # Load operational parameters
     config = parse_args_to_config()
+    
+    # Force alignment of the backbone model name using the saved adapter config metadata
+    if checkpoint_path:
+        adapter_config_path = os.path.join(checkpoint_path, "adapter_config.json")
+        if os.path.exists(adapter_config_path):
+            with open(adapter_config_path, "r") as f:
+                adapter_meta = json.load(f)
+            # Override model_name if base_model_name_or_path is present in saved json
+            if "base_model_name_or_path" in adapter_meta and adapter_meta["base_model_name_or_path"]:
+                config.model_name = adapter_meta["base_model_name_or_path"]
+                # Re-run post-init alignment logic manually
+                config.__post_init__()
+
     device = torch.device(config.device if torch.cuda.is_available() else "cpu")
-    print(f"Starting Diagnostic Probing on device: {device}")
+    print(f"Starting Diagnostic Probing on device: {device} for model: {config.model_name}")
     
     # Extract the strategy from the folder path since config.strategy defaults to vanilla
     resolved_strategy = config.strategy
@@ -87,16 +102,24 @@ def main():
         num_workers=config.num_workers,
         pin_memory=config.pin_memory
     )
-    # Initialize base model
+    # Initialize base model matching the correct architecture
     model = get_backbone_model(config, num_classes=num_classes).to(device)
     # Load LoRA adapters if checkpoint path is provided
     if checkpoint_path:
         print(f"Loading LoRA weights from: {checkpoint_path}")
+        with open(os.path.join(checkpoint_path, "adapter_config.json"), "r") as f:
+            saved_targets = set(json.load(f).get("target_modules", []))
+        expected_targets = set(config.target_modules)
+        if saved_targets != expected_targets:
+            raise RuntimeError(
+                f"Checkpoint at {checkpoint_path} has target_modules={saved_targets}, "
+                f"but {config.model_name} expects {expected_targets}. "
+                f"This checkpoint was likely saved by a different backbone under the old naming scheme."
+            )
         model = PeftModel.from_pretrained(model, checkpoint_path).to(device)
         model.eval()
     os.makedirs(config.cache_dir, exist_ok=True)
     model_safe_name = config.model_name.replace("/", "_")
-    
     if checkpoint_path:
         strategy_suffix = f"_adapted_{resolved_strategy}"
     else:
