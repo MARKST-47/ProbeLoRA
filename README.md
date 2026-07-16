@@ -19,6 +19,7 @@ Adaptive LoRA rank allocation for Vision Transformers, guided by per-layer diagn
 ├── scripts/
 |   └── clip_matrix.sub        ← CLIP model probe + runs
 |   └── dino_matrix.sub        ← DINO model probe + runs
+|   └── run_in_docker.sh       ← Pipeline setup
 ├── requirements.txt
 └── README.md
 ```
