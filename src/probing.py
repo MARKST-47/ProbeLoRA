@@ -6,7 +6,7 @@ import wandb
 from tqdm import tqdm
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
-from peft import PeftModel  # Added for loading LoRA checkpoints
+from peft import PeftModel
 
 from config import parse_args_to_config, ExperimentConfig
 from data.datasets import get_dataloader
@@ -53,6 +53,16 @@ def main():
     config = parse_args_to_config()
     device = torch.device(config.device if torch.cuda.is_available() else "cpu")
     print(f"Starting Diagnostic Probing on device: {device}")
+    
+    # Extract the strategy from the folder path since config.strategy defaults to vanilla
+    resolved_strategy = config.strategy
+    if checkpoint_path:
+        folder_name = os.path.basename(os.path.normpath(checkpoint_path))
+        for strategy_cand in ["vanilla", "support_weak", "amplify_strong", "proportional"]:
+            if strategy_cand in folder_name:
+                resolved_strategy = strategy_cand
+                break
+
     wandb.init(
         project=config.wandb_project,
         entity=config.wandb_entity,
@@ -86,11 +96,15 @@ def main():
         model.eval()
     os.makedirs(config.cache_dir, exist_ok=True)
     model_safe_name = config.model_name.replace("/", "_")
-    # Modify cache filename when loading adapted models to avoid conflict with raw features
-    suffix = "_adapted" if checkpoint_path else ""
-    cache_file_path = os.path.join(config.cache_dir, f"{config.dataset}_{model_safe_name}{suffix}.npz")
+    
+    if checkpoint_path:
+        strategy_suffix = f"_adapted_{resolved_strategy}"
+    else:
+        strategy_suffix = ""
+        
+    cache_file_path = os.path.join(config.cache_dir, f"{config.dataset}_{model_safe_name}{strategy_suffix}.npz")
     if not os.path.exists(cache_file_path):
-        print(f"No existing feature cache found. Running forward passes...")
+        print(f"No existing feature cache found ({cache_file_path}). Running forward passes...")
         X_train, y_train = cache_backbone_features(model, train_loader, device)
         X_val, y_val = cache_backbone_features(model, val_loader, device)
         print(f"Saving extracted hidden states directly to: {cache_file_path}")
@@ -119,7 +133,7 @@ def main():
         print(f"Transformer Block {block_idx:02d} -> Downstream Probing Validation Accuracy: {accuracy_score * 100:.2f}%")
 
     print("\nDiagnostic Probe Execution Finalized.")
-    scores_file_path = os.path.join(config.cache_dir, f"{config.dataset}_{model_safe_name}{suffix}_scores.npy")
+    scores_file_path = os.path.join(config.cache_dir, f"{config.dataset}_{model_safe_name}{strategy_suffix}_scores.npy")
     np.save(scores_file_path, np.array(probing_accuracies))
     print(f"Automatically saved report card scores to: {scores_file_path}")
     wandb.finish()
