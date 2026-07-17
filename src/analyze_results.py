@@ -209,16 +209,25 @@ def plot_val_acc_leaderboard(summary):
     plt.close(fig)
 
 def print_findings(summary):
-    print("\n" + "=" * 78)
-    print("PROBING LEADERBOARD — Best structural configuration via layer gains")
-    print("=" * 78)
+    print("VAL-ACCURACY LEADERBOARD — best strategy per (dataset, backbone)")
+    if summary["best_val_acc"].notna().any():
+        for (backbone, dataset), g in summary.groupby(["backbone", "dataset"]):
+            valid = g.dropna(subset=["best_val_acc"])
+            if valid.empty:
+                print(f"[{dataset:12s} | {backbone:30s}] no val-acc entered yet")
+                continue
+            best_row = valid.loc[valid["best_val_acc"].idxmax()]
+            print(f"[{dataset:12s} | {backbone:30s}] best: {best_row['strategy']:15s} "
+                  f"(best_val_acc={best_row['best_val_acc']:.2f}%)")
+    else:
+        print("No val-acc entered yet — fill in MANUAL_RUN_METRICS first.")
+
+    print("PROBING LEADERBOARD — best structural configuration via layer gains")
     for (backbone, dataset), g in summary.groupby(["backbone", "dataset"]):
         best_row = g.loc[g["avg_post_acc"].idxmax()]
         print(f"[{dataset:12s} | {backbone:30s}] best: {best_row['strategy']:15s} (avg_post_acc={best_row['avg_post_acc']:.2f}%)")
 
-    print("\n" + "=" * 78)
     print("NOTABLE PER-LAYER FINDINGS (Biggest individual block jump)")
-    print("=" * 78)
     for (backbone, dataset, strategy), g in summary.groupby(["backbone", "dataset", "strategy"]):
         print(f"[{dataset:12s} | {backbone:30s} | {strategy:15s}] "
               f"avg_delta={g['avg_delta'].values[0]:+.2f}pp, max_layer_delta={g['max_layer_delta'].values[0]:+.2f}pp")
