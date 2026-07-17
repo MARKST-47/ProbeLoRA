@@ -18,35 +18,35 @@ BASE_R = 8
 # Format: (backbone, dataset, strategy): (best_val_accuracy, best_train_accuracy)
 MANUAL_RUN_METRICS = {
     # DINOv2 Base
-    ("facebook/dinov2-base", "cifar100", "vanilla"): (0.0, 0.0),
-    ("facebook/dinov2-base", "cifar100", "support_weak"): (0.0, 0.0),
-    ("facebook/dinov2-base", "cifar100", "amplify_strong"): (0.0, 0.0),
-    ("facebook/dinov2-base", "cifar100", "proportional"): (0.0, 0.0),
+    ("facebook/dinov2-base", "cifar100", "vanilla"): (93.11, 98.75),
+    ("facebook/dinov2-base", "cifar100", "support_weak"): (92.99, 98.80),
+    ("facebook/dinov2-base", "cifar100", "amplify_strong"): (93.20, 99.03),
+    ("facebook/dinov2-base", "cifar100", "proportional"): (93.10, 98.93),
 
-    ("facebook/dinov2-base", "oxford_pets", "vanilla"): (0.0, 0.0),
-    ("facebook/dinov2-base", "oxford_pets", "support_weak"): (0.0, 0.0),
-    ("facebook/dinov2-base", "oxford_pets", "amplify_strong"): (0.0, 0.0),
-    ("facebook/dinov2-base", "oxford_pets", "proportional"): (0.0, 0.0),
+    ("facebook/dinov2-base", "oxford_pets", "vanilla"): (95.15, 99.86),
+    ("facebook/dinov2-base", "oxford_pets", "support_weak"): (95.31, 99.86),
+    ("facebook/dinov2-base", "oxford_pets", "amplify_strong"): (95.39, 99.92),
+    ("facebook/dinov2-base", "oxford_pets", "proportional"): (95.39, 99.84),
 
-    ("facebook/dinov2-base", "cub200", "vanilla"): (0.0, 0.0),
-    ("facebook/dinov2-base", "cub200", "support_weak"): (0.0, 0.0),
-    ("facebook/dinov2-base", "cub200", "amplify_strong"): (0.0, 0.0),
-    ("facebook/dinov2-base", "cub200", "proportional"): (0.0, 0.0),
+    ("facebook/dinov2-base", "cub200", "vanilla"): (89.54, 98.90),
+    ("facebook/dinov2-base", "cub200", "support_weak"): (89.21, 99.07),
+    ("facebook/dinov2-base", "cub200", "amplify_strong"): (89.28, 99.12),
+    ("facebook/dinov2-base", "cub200", "proportional"): (89.75, 99.25),
     # CLIP Vit-Base-Patch16
-    ("openai/clip-vit-base-patch16", "cifar100", "vanilla"): (0.0, 0.0),
-    ("openai/clip-vit-base-patch16", "cifar100", "support_weak"): (0.0, 0.0),
-    ("openai/clip-vit-base-patch16", "cifar100", "amplify_strong"): (0.0, 0.0),
-    ("openai/clip-vit-base-patch16", "cifar100", "proportional"): (0.0, 0.0),
+    ("openai/clip-vit-base-patch16", "cifar100", "vanilla"): (88.00, 95.76),
+    ("openai/clip-vit-base-patch16", "cifar100", "support_weak"): (87.18, 95.34),
+    ("openai/clip-vit-base-patch16", "cifar100", "amplify_strong"): (87.53, 95.72),
+    ("openai/clip-vit-base-patch16", "cifar100", "proportional"): (87.70, 96.18),
 
-    ("openai/clip-vit-base-patch16", "oxford_pets", "vanilla"): (0.0, 0.0),
-    ("openai/clip-vit-base-patch16", "oxford_pets", "support_weak"): (0.0, 0.0),
-    ("openai/clip-vit-base-patch16", "oxford_pets", "amplify_strong"): (0.0, 0.0),
-    ("openai/clip-vit-base-patch16", "oxford_pets", "proportional"): (0.0, 0.0),
+    ("openai/clip-vit-base-patch16", "oxford_pets", "vanilla"): (93.87, 99.08),
+    ("openai/clip-vit-base-patch16", "oxford_pets", "support_weak"): (93.95, 98.59),
+    ("openai/clip-vit-base-patch16", "oxford_pets", "amplify_strong"): (93.81, 98.70),
+    ("openai/clip-vit-base-patch16", "oxford_pets", "proportional"): (94.11, 98.86),
 
-    ("openai/clip-vit-base-patch16", "cub200", "vanilla"): (0.0, 0.0),
-    ("openai/clip-vit-base-patch16", "cub200", "support_weak"): (0.0, 0.0),
-    ("openai/clip-vit-base-patch16", "cub200", "amplify_strong"): (0.0, 0.0),
-    ("openai/clip-vit-base-patch16", "cub200", "proportional"): (0.0, 0.0),
+    ("openai/clip-vit-base-patch16", "cub200", "vanilla"): (85.45, 95.38),
+    ("openai/clip-vit-base-patch16", "cub200", "support_weak"): (84.64, 94.86),
+    ("openai/clip-vit-base-patch16", "cub200", "amplify_strong"): (85.48, 95.35),
+    ("openai/clip-vit-base-patch16", "cub200", "proportional"): (86.30, 95.38),
 }
 
 plt.rcParams.update({"figure.dpi": 120, "font.size": 9})
