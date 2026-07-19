@@ -30,9 +30,75 @@ Adaptive LoRA rank allocation for Vision Transformers, guided by per-layer diagn
 
 ## Environment Setup
 
+This project runs inside a Docker container (`pytorch/pytorch:2.3.1-cuda12.1-cudnn8-devel`) on the department's HTCondor cluster, so no local GPU setup is required.
+
+**1. Clone the repository and install dependencies** (for local/offline testing outside the container):
+
+```bash
+git clone <repo-url>
+cd probelora
+pip install -r requirements.txt
+```
+
+**2. Cluster access.** Jobs run under the `UidDomain == "cs.uni-saarland.de"` requirement via `scripts/run_in_docker.sh`, which handles environment setup inside the container (installing any packages not baked into the base image, e.g. `peft`, `wandb`, `scikit-learn`).
+
+**3. WandB.** Training and probing both log to WandB. Authenticate once per machine with:
+
+```bash
+wandb login
+```
+
+Set `wandb_project` / `wandb_entity` in `src/config.py` before the first run.
+
+**4. Datasets.** CIFAR-100, Oxford Pets, and CUB-200 download automatically into `data/raw/` on first use via `data/datasets.py` — no manual download step needed.
+
 ---
 
 ## Execution Pipeline
+
+The pipeline has three stages, run in order, since each depends on the previous stage's output:
+
+**Stage 1 — Baseline diagnostic probing.** Trains a per-layer logistic regression probe on the frozen backbone's hidden states, producing the "report card" scores used to compute rank allocations:
+
+```bash
+python src/probing.py --dataset <dataset> --model_name <model_name>
+```
+
+Saves `cached_features/{dataset}_{model_safe_name}_scores.npy`.
+
+**Stage 2 — LoRA fine-tuning.** Trains the backbone with LoRA adapters under one of the four allocation strategies. Non-vanilla strategies load the Stage 1 scores automatically:
+
+```bash
+python src/train.py --dataset <dataset> --model_name <model_name> --strategy <strategy> --epochs 10 --lora_r 8 --batch_size 64
+```
+
+Saves the adapter checkpoint to `checkpoints/{dataset}_{model_safe_name}_{strategy}/`.
+
+**Stage 3 — Post-adaptation probing.** Re-runs diagnostic probing on the fine-tuned checkpoint, to see how much each layer's representation improved under that strategy's rank allocation:
+
+```bash
+python src/probing.py --dataset <dataset> --model_name <model_name> --checkpoint_path checkpoints/{dataset}_{model_safe_name}_{strategy}
+```
+
+Saves `cached_features/{dataset}_{model_safe_name}_adapted_{strategy}_scores.npy`.
+
+**Running the full grid on the cluster.** `scripts/dino_matrix.sub` and `scripts/clip_matrix.sub` queue all (dataset × strategy) combinations for each backbone. Since Stage 3 depends on Stage 2's checkpoints, submit training and probing separately and wait for training to finish first:
+
+```bash
+condor_submit scripts/dino_matrix.sub   # Stage 1 + Stage 2
+condor_wait condor_logs/train.log
+condor_submit scripts/dino_matrix.sub   # Stage 3, once checkpoints exist
+```
+
+(same for `clip_matrix.sub`).
+
+**Stage 4 — Analysis.** Once all probing scores are on disk, generate the summary tables and plots:
+
+```bash
+python src/analyze_results.py
+```
+
+Reads directly from `cached_features/`, matching pre- and post-adaptation scores per (backbone, dataset, strategy). Outputs land in `analysis_output/`: `summary_table.csv`, `layer_detail.csv`, and per-config probing-accuracy plots, plus a console leaderboard of the best strategy per (dataset, backbone).
 
 ---
 
@@ -95,3 +161,31 @@ $$r_i = \left\lfloor r_{\min} + \left( (r_{\max} - r_{\min}) \cdot \frac{S_i - \
 (at `r_base = 8`, this yields the same `[4, 16]` range as Strategies A and B use as their effective span, keeping all three strategies budget-comparable and jointly controllable via `--lora_r`)
 
 All three adaptive strategies share the same total-budget logic as Vanilla — they redistribute an equivalent rank pool across layers rather than increasing it, isolating the effect of **where** capacity is allocated rather than **how much** capacity is used.
+
+---
+
+## Backbones and Datasets
+
+Two ViT-style backbones are evaluated, each with 12 transformer layers:
+
+- `facebook/dinov2-base`
+- `openai/clip-vit-base-patch16`
+
+Across three image classification datasets of increasing granularity:
+
+- CIFAR-100 (coarse-grained, 100 classes)
+- Oxford Pets (37 classes)
+- CUB-200 (fine-grained, 200 classes)
+
+This gives a full 2 × 3 × 4 grid (backbone × dataset × strategy) of 24 training runs, backed by 6 baseline and 24 post-adaptation diagnostic probing runs.
+
+---
+
+## Results
+
+See `analysis_output/` after running `src/analyze_results.py`:
+
+- `summary_table.csv` — average pre-/post-adaptation probing accuracy, probing accuracy gain, and rank-vs-gain correlation, per (backbone, dataset, strategy)
+- `layer_detail.csv` — full per-layer breakdown
+- `probing_by_layer_<dataset>_<backbone>.png` — per-layer probing accuracy, all strategies vs. the pre-adaptation baseline
+- `probing_delta_bars.png`, `rank_vs_delta_corr.png`, `val_acc_leaderboard.png` — aggregate comparisons across strategies
