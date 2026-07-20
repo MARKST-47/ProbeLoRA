@@ -82,12 +82,10 @@ python src/probing.py --dataset <dataset> --model_name <model_name> --checkpoint
 
 Saves `cached_features/{dataset}_{model_safe_name}_adapted_{strategy}_scores.npy`.
 
-**Running the full grid on the cluster.** `scripts/dino_matrix.sub` and `scripts/clip_matrix.sub` queue all (dataset × strategy) combinations for each backbone. Since Stage 3 depends on Stage 2's checkpoints, submit training and probing separately and wait for training to finish first:
+**Running the full grid on the cluster.** `scripts/dino_matrix.sub` and `scripts/clip_matrix.sub` queue all (dataset × strategy) combinations for each backbone.
 
 ```bash
-condor_submit scripts/dino_matrix.sub   # Stage 1 + Stage 2
-condor_wait condor_logs/train.log
-condor_submit scripts/dino_matrix.sub   # Stage 3, once checkpoints exist
+condor_submit scripts/dino_matrix.sub
 ```
 
 (same for `clip_matrix.sub`).
