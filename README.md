@@ -40,7 +40,7 @@ cd probelora
 pip install -r requirements.txt
 ```
 
-**2. Cluster access.** Jobs run under the `UidDomain == "cs.uni-saarland.de"` requirement via `scripts/run_in_docker.sh`, which handles environment setup inside the container (installing any packages not baked into the base image, e.g. `peft`, `wandb`, `scikit-learn`).
+**2. Cluster access.** Jobs run under the university domain requirement via `scripts/run_in_docker.sh`, which handles environment setup inside the container (installing any packages not baked into the base image, e.g. `peft`, `wandb`, `scikit-learn`).
 
 **3. WandB.** Training and probing both log to WandB. Authenticate once per machine with:
 
